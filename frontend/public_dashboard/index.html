@@ -17,7 +17,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Project RELAY Dashboard</title>
-  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" href="favicon.png?v=2" />
 
   <!-- Fonts used on project-relay.org: Instrument Sans (body/headings),
        Public Sans (nav links). Both open-source, served by Google Fonts. -->
@@ -144,12 +144,23 @@
     }
     .info-popover[hidden] { display: none; }
 
-    /* --- Condition filter ----------------------------------- */
-    .filter h4 {
-      margin: 0 0 4px;
+    /* --- Condition filter (collapsible) --------------------- */
+    .filter summary {
       font-size: 14px;
       font-weight: 700;
+      cursor: pointer;
+      list-style: none;               /* hide default disclosure triangle */
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+    .filter summary::-webkit-details-marker { display: none; }
+    .filter summary::before {
+      content: "\25B8";               /* ▸ */
+      font-size: 0.8em;
+    }
+    .filter[open] summary::before { content: "\25BE"; }  /* ▾ */
+    .filter[open] summary { margin-bottom: 4px; }
     .filter ul {
       list-style: none;
       margin: 0;
@@ -253,11 +264,11 @@
         synthetic data reports generated only for the purpose of this system demo.</strong>
       </div>
     </div>
-    <div class="filter">
-      <h4>Condition Filter</h4>
+    <details class="filter">
+      <summary>Condition Filter</summary>
       <ul id="conditionFilter"></ul>
       <button type="button" class="clear-filters" id="clearFilters">Clear filters</button>
-    </div>
+    </details>
     <div class="filter-count" id="filterCount"></div>
   </div>
 
