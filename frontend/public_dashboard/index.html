@@ -17,6 +17,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Project RELAY Dashboard</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <!-- Fonts used on project-relay.org: Instrument Sans (body/headings),
        Public Sans (nav links). Both open-source, served by Google Fonts. -->
@@ -176,6 +177,18 @@
       background: #EC635E;
       border-color: #000;
     }
+    .filter .clear-filters {
+      margin-top: 6px;
+      padding: 3px 8px;
+      font: inherit;
+      font-size: 12px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #999;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .filter .clear-filters:hover { border-color: #000; background: #f0f0f0; }
 
     /* --- Report popup --------------------------------------- */
     .leaflet-popup-content { margin: 10px 12px; }
@@ -243,6 +256,7 @@
     <div class="filter">
       <h4>Condition Filter</h4>
       <ul id="conditionFilter"></ul>
+      <button type="button" class="clear-filters" id="clearFilters">Clear filters</button>
     </div>
     <div class="filter-count" id="filterCount"></div>
   </div>
@@ -500,6 +514,14 @@
 
     buildConditionFilter();
     applyConditionFilter();
+
+    // "Clear filters" - release every toggle and show all reports again.
+    document.getElementById("clearFilters").addEventListener("click", () => {
+      document
+        .querySelectorAll('.filter-dot[aria-pressed="true"]')
+        .forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+      applyConditionFilter();
+    });
   </script>
 </body>
 </html>
