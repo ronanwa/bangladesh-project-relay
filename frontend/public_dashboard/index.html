@@ -96,12 +96,16 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 0.5rem;
+      max-height: calc(100% - clamp(44px, 8vw, 66px) - 1.5rem);
+      overflow-y: auto;
+      padding-right: 4px;   /* room for the scrollbar */
     }
 
     .notice,
     #status,
     .filter,
-    .filter-count {
+    .filter-count,
+    .clear-filters {
       padding: 6px 10px;
       background: rgba(255, 255, 255, 0.95);
       border-radius: 5px;
@@ -188,18 +192,16 @@
       background: #EC635E;
       border-color: #000;
     }
-    .filter .clear-filters {
-      margin-top: 6px;
-      padding: 3px 8px;
+    /* --- Clear-all-filters button (its own box) ------------- */
+    .clear-filters {
       font: inherit;
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 400;
       color: var(--ink);
-      background: #fff;
-      border: 1px solid #999;
-      border-radius: 4px;
       cursor: pointer;
+      border: 1px solid #999;
     }
-    .filter .clear-filters:hover { border-color: #000; background: #f0f0f0; }
+    .clear-filters:hover { border-color: #000; background: #f0f0f0; }
 
     /* --- Report popup --------------------------------------- */
     .leaflet-popup-content { margin: 10px 12px; }
@@ -267,8 +269,12 @@
     <details class="filter">
       <summary>Condition Filter</summary>
       <ul id="conditionFilter"></ul>
-      <button type="button" class="clear-filters" id="clearFilters">Clear filters</button>
     </details>
+    <details class="filter">
+      <summary>Water Depth Filter</summary>
+      <ul id="depthFilter"></ul>
+    </details>
+    <button type="button" class="clear-filters" id="clearFilters">Clear all filters</button>
     <div class="filter-count" id="filterCount"></div>
   </div>
 
@@ -412,6 +418,16 @@
       { key: "has_attachment",          label: "Has attachment" },
     ];
 
+    // Reported flood_depth values, shallowest to deepest. Used by the
+    // Water Depth Filter (multi-select: a report matches if its depth is one
+    // of the selected options).
+    const DEPTH_OPTIONS = [
+      ["below_ankle", "Below ankle"],
+      ["ankle", "Ankle"],
+      ["knee", "Knee"],
+      ["waist", "Waist"],
+    ];
+
     function formatTime(v) {
       if (!v) return "—";
       return String(v).replace("T", " ").replace("+00:00", " UTC");
@@ -457,30 +473,47 @@
       }
     }
 
-    // Conditions currently toggled on in the filter, each as { key, invert }.
+    // Conditions currently toggled on in the Condition Filter, each { key, invert }.
     function activeConditions() {
-      return [...document.querySelectorAll('.filter-dot[aria-pressed="true"]')]
-        .map((btn) => ({
-          key: btn.dataset.condition,
-          invert: btn.dataset.invert === "1",
-        }));
+      return [
+        ...document.querySelectorAll('#conditionFilter .filter-dot[aria-pressed="true"]'),
+      ].map((btn) => ({
+        key: btn.dataset.condition,
+        invert: btn.dataset.invert === "1",
+      }));
     }
 
-    // A report passes when every active condition matches. "invert" conditions
-    // match when the field is false; the rest match when it is true. With no
-    // active conditions, every report passes.
-    function reportPassesFilter(report, active) {
+    // Depths currently toggled on in the Water Depth Filter.
+    function selectedDepths() {
+      return [
+        ...document.querySelectorAll('#depthFilter .filter-dot[aria-pressed="true"]'),
+      ].map((btn) => btn.dataset.depth);
+    }
+
+    // A report passes the condition filter when every active condition matches.
+    // "invert" conditions match when the field is false; the rest when it is
+    // true. With no active conditions, every report passes.
+    function reportPassesConditions(report, active) {
       return active.every(({ key, invert }) =>
         invert ? report[key] === false : report[key] === true
       );
     }
 
-    function applyConditionFilter() {
+    // A report passes the depth filter when its depth is one of the selected
+    // ones. With nothing selected, every report passes.
+    function reportPassesDepth(report, depths) {
+      return depths.length === 0 || depths.includes(report.flood_depth);
+    }
+
+    function applyFilters() {
       const active = activeConditions();
+      const depths = selectedDepths();
       let shown = 0;
 
       for (const { report, marker } of reportMarkers) {
-        const pass = reportPassesFilter(report, active);
+        const pass =
+          reportPassesDepth(report, depths) &&
+          reportPassesConditions(report, active);
         marker.setStyle(pass ? MARKER_STYLE : DIMMED_STYLE);
         if (pass) {
           marker.bringToFront();
@@ -494,44 +527,63 @@
 
     renderReports(SAMPLE_REPORTS);
 
-    // Condition filter UI. Each row is a circular toggle button + label,
-    // built from the same CONDITION_FIELDS list used by the popups.
+    // Build one row: a circular toggle button + label. `data` is the dataset
+    // to attach to the button (e.g. { condition, invert } or { depth }).
+    function filterRow(label, data) {
+      const li = document.createElement("li");
+
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "filter-dot";
+      Object.assign(dot.dataset, data);
+      dot.setAttribute("aria-pressed", "false");
+      dot.setAttribute("aria-label", label);
+      dot.addEventListener("click", () => {
+        const pressed = dot.getAttribute("aria-pressed") === "true";
+        dot.setAttribute("aria-pressed", String(!pressed));
+        applyFilters();
+      });
+
+      const text = document.createElement("span");
+      text.textContent = label;
+
+      li.append(dot, text);
+      return li;
+    }
+
+    // Condition Filter - one row per CONDITION_FIELDS entry (same list the
+    // popups use).
     function buildConditionFilter() {
       const list = document.getElementById("conditionFilter");
       for (const { key, label, filterLabel, invert } of CONDITION_FIELDS) {
-        const shownLabel = filterLabel || label;
-        const li = document.createElement("li");
+        list.append(
+          filterRow(filterLabel || label, {
+            condition: key,
+            invert: invert ? "1" : "",
+          })
+        );
+      }
+    }
 
-        const dot = document.createElement("button");
-        dot.type = "button";
-        dot.className = "filter-dot";
-        dot.dataset.condition = key;
-        dot.dataset.invert = invert ? "1" : "";
-        dot.setAttribute("aria-pressed", "false");
-        dot.setAttribute("aria-label", shownLabel);
-        dot.addEventListener("click", () => {
-          const pressed = dot.getAttribute("aria-pressed") === "true";
-          dot.setAttribute("aria-pressed", String(!pressed));
-          applyConditionFilter();
-        });
-
-        const text = document.createElement("span");
-        text.textContent = shownLabel;
-
-        li.append(dot, text);
-        list.append(li);
+    // Water Depth Filter - one row per DEPTH_OPTIONS entry.
+    function buildDepthFilter() {
+      const list = document.getElementById("depthFilter");
+      for (const [value, label] of DEPTH_OPTIONS) {
+        list.append(filterRow(label, { depth: value }));
       }
     }
 
     buildConditionFilter();
-    applyConditionFilter();
+    buildDepthFilter();
+    applyFilters();
 
-    // "Clear filters" - release every toggle and show all reports again.
+    // "Clear all filters" - release every toggle (condition + depth) and show
+    // all reports again.
     document.getElementById("clearFilters").addEventListener("click", () => {
       document
         .querySelectorAll('.filter-dot[aria-pressed="true"]')
         .forEach((btn) => btn.setAttribute("aria-pressed", "false"));
-      applyConditionFilter();
+      applyFilters();
     });
   </script>
 </body>
