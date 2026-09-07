@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Project RELAY Demo</title>
+  <title>Project RELAY Dashboard</title>
 
   <!-- Fonts used on project-relay.org: Instrument Sans (body/headings),
        Public Sans (nav links). Both open-source, served by Google Fonts. -->
@@ -161,9 +161,9 @@
   </header>
 
   <div id="map"></div>
-  <div id="status">Sample data</div>
+  <div id="status">Synthetic data</div>
   <div class="notice">
-    <div class="notice-title">Public Dashboard</div>
+    <div class="notice-title">Public Dashboard Demo</div>
     <div class="notice-sub">Under Construction 🏗 🚚</div>
   </div>
 
@@ -280,7 +280,7 @@
       if (markers.length > 0) {
         map.fitBounds(L.featureGroup(markers).getBounds().pad(0.1));
       }
-      statusEl.textContent = `Sample data — ${markers.length} report(s)`;
+      statusEl.textContent = `Synthetic data — ${markers.length} flood condition reports`;
     }
 
     renderReports(SAMPLE_REPORTS);
