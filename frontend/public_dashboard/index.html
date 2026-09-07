@@ -4,14 +4,41 @@
   File: frontend/public_dashboard/index.html
   Author: Ronan Wallace (https://github.com/ronanwa)
 
-  Public dashboard - placeholder page.
-  The real map dashboard is drafted in index_draft.html.
+  Public dashboard - STANDALONE DEMO (currently the deployed page).
+  NO backend / database connection: the pins come from a hardcoded
+  SAMPLE_REPORTS array below (the rows from add_sample_data.sql, with
+  coordinates repositioned into Dhaka / Chattogram / Sylhet clusters), so
+  this page is safe to deploy on its own via GitHub Pages before the API
+  is live.
 -->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Project RELAY - Public Dashboard</title>
+  <title>Project RELAY Demo</title>
+
+  <!-- Fonts used on project-relay.org: Instrument Sans (body/headings),
+       Public Sans (nav links). Both open-source, served by Google Fonts. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Public+Sans:wght@400;600;700&display=swap"
+  />
+
+  <!-- Leaflet (open-source map library, OpenStreetMap tiles, no API key) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
   <style>
     :root {
       --relay-blue: #b0c5de;   /* banner background, matches project-relay.org logo */
@@ -22,7 +49,7 @@
     body {
       display: flex;
       flex-direction: column;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: "Instrument Sans", Arial, Helvetica, sans-serif;
       color: var(--ink);
       background: #f5f5f5;
     }
@@ -32,46 +59,231 @@
       background: var(--relay-blue);
       display: flex;
       align-items: center;
+      justify-content: space-between;
       padding: 0 clamp(1rem, 4vw, 3rem);
+      flex: 0 0 auto;
     }
+    .banner a { display: flex; }
     .banner img {
       height: clamp(44px, 8vw, 66px);
       width: auto;
       display: block;
     }
-
-    /* --- Body content ---------------------------------------- */
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 1rem;
-      line-height: 1.3;
-    }
-    main .title {
-      margin: 0;
-      font-weight: 700;
-      font-size: clamp(1.5rem, 5vw, 3rem);
-    }
-    main .subtitle {
-      margin: 0.5rem 0 0;
+    .banner .home-link {
+      color: #ffffff;   /* matches the nav links on project-relay.org */
+      text-decoration: none;
+      font-family: "Public Sans", Arial, Helvetica, sans-serif;
       font-weight: 400;
-      font-size: clamp(1rem, 3vw, 1.5rem);
-      opacity: 0.75;
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+    }
+    .banner .home-link:hover { text-decoration: underline; }
+
+    /* --- Map -------------------------------------------------- */
+    #map {
+      flex: 1 1 auto;
+      width: 100%;
+    }
+
+    #status {
+      position: absolute;
+      top: calc(clamp(44px, 8vw, 66px) + 1.5rem);
+      left: 50px;
+      z-index: 1000;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 4px;
+      font-size: 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .notice {
+      position: absolute;
+      top: calc(clamp(44px, 8vw, 66px) + 0.75rem);
+      right: 0.75rem;
+      z-index: 1000;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 5px;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+      text-align: right;
+      line-height: 1.3;
+      font-size: 14px;
+    }
+    .notice .notice-title { font-weight: 700; }
+    .notice .notice-sub { font-size: 0.9em; opacity: 0.8; }
+
+    /* --- Report popup --------------------------------------- */
+    .leaflet-popup-content { margin: 10px 12px; }
+    .report-popup {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .report-popup h3 {
+      margin: 0 0 4px;
+      font-size: 13px;
+      text-decoration: underline;
+    }
+    .report-popup .meta-row > span:first-child { font-weight: 600; }
+    .report-popup hr {
+      border: none;
+      border-top: 1px solid #ccc;
+      margin: 6px 0;
+    }
+    .report-popup .depth { margin-bottom: 4px; }
+    .report-popup .depth > span:first-child { font-weight: 600; }
+    .report-popup ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .report-popup li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .report-popup input[type="checkbox"] {
+      margin: 0;
+      pointer-events: none;
+    }
+    .report-popup .coords {
+      margin-top: 6px;
+      opacity: 0.65;
+      font-size: 11px;
     }
   </style>
 </head>
 <body>
   <header class="banner">
-    <img src="relay-logo.png" alt="Project RELAY" />
+    <a href="https://project-relay.org" aria-label="Project RELAY home">
+      <img src="relay-logo.png" alt="Project RELAY" />
+    </a>
+    <a class="home-link" href="https://project-relay.org">Home</a>
   </header>
 
-  <main>
-    <p class="title">Public Dashboard</p>
-    <p class="subtitle">Under Construction 🏗 🚚</p>
-  </main>
+  <div id="map"></div>
+  <div id="status">Sample data</div>
+  <div class="notice">
+    <div class="notice-title">Public Dashboard</div>
+    <div class="notice-sub">Under Construction 🏗 🚚</div>
+  </div>
+
+  <script>
+    // ------------------------------------------------------------------
+    // SAMPLE DATA - hardcoded, no backend. Edit freely; this page never
+    // contacts a server or database.
+    // ------------------------------------------------------------------
+    const SAMPLE_REPORTS = [
+      // --- Dhaka cluster ---
+      { report_id: 1,  timestamp: "2026-07-20T08:16:00+00:00", latitude: 23.8103, longitude: 90.4125, submission_type: "voice_call", flood_depth: "knee",        food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: true,  home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: false },
+      { report_id: 2,  timestamp: "2026-07-20T09:03:00+00:00", latitude: 23.7346, longitude: 90.3612, submission_type: "voice_call", flood_depth: "below_ankle", food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: true,  family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: true  },
+      { report_id: 3,  timestamp: "2026-07-20T09:41:00+00:00", latitude: 23.9418, longitude: 90.4557, submission_type: "voice_call", flood_depth: "waist",       food_available: false, water_available: false, electricity_available: false, flood_water_rising_fast: true,  home_damaged: true,  road_damaged: true,  family_member_sick: true,  family_member_injured: false, family_member_missing: false, flood_shelter_crowded: true,  daily_job_affected: true,  has_attachment: true  },
+      { report_id: 4,  timestamp: "2026-07-20T09:55:00+00:00", latitude: 23.7994, longitude: 90.3878, submission_type: "mobile_app", flood_depth: "ankle",       food_available: true,  water_available: false, electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: true  },
+      { report_id: 5,  timestamp: "2026-07-20T10:06:00+00:00", latitude: 23.8571, longitude: 90.5352, submission_type: "voice_call", flood_depth: "below_ankle", food_available: true,  water_available: true,  electricity_available: false, flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: false, has_attachment: false },
+      { report_id: 6,  timestamp: "2026-07-20T10:31:00+00:00", latitude: 23.6462, longitude: 90.4213, submission_type: "voice_call", flood_depth: "knee",        food_available: false, water_available: true,  electricity_available: true,  flood_water_rising_fast: true,  home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: true,  daily_job_affected: true,  has_attachment: true  },
+      { report_id: 7,  timestamp: "2026-07-20T10:50:00+00:00", latitude: 23.8288, longitude: 90.4306, submission_type: "mobile_app", flood_depth: "ankle",       food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: false, has_attachment: false },
+      { report_id: 8,  timestamp: "2026-07-20T11:13:00+00:00", latitude: 23.7607, longitude: 90.4934, submission_type: "voice_call", flood_depth: "knee",        food_available: false, water_available: false, electricity_available: true,  flood_water_rising_fast: true,  home_damaged: false, road_damaged: false, family_member_sick: true,  family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: false },
+      { report_id: 9,  timestamp: "2026-07-20T11:46:00+00:00", latitude: 23.9663, longitude: 90.3441, submission_type: "voice_call", flood_depth: "waist",       food_available: true,  water_available: false, electricity_available: false, flood_water_rising_fast: true,  home_damaged: true,  road_damaged: true,  family_member_sick: false, family_member_injured: true,  family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: true  },
+      { report_id: 10, timestamp: "2026-07-20T12:21:00+00:00", latitude: 23.6889, longitude: 90.5487, submission_type: "voice_call", flood_depth: "below_ankle", food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: true,  family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: false },
+      // --- Chattogram cluster ---
+      { report_id: 11, timestamp: "2026-07-20T12:40:00+00:00", latitude: 22.3569, longitude: 91.8317, submission_type: "mobile_app", flood_depth: "ankle",       food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: false, has_attachment: true  },
+      { report_id: 12, timestamp: "2026-07-20T12:55:00+00:00", latitude: 22.4450, longitude: 91.7850, submission_type: "mobile_app", flood_depth: "knee",        food_available: false, water_available: false, electricity_available: true,  flood_water_rising_fast: true,  home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: true,  daily_job_affected: true,  has_attachment: true  },
+      { report_id: 13, timestamp: "2026-07-20T13:01:00+00:00", latitude: 22.2780, longitude: 91.8850, submission_type: "voice_call", flood_depth: "below_ankle", food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: true,  home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: false, has_attachment: false },
+      { report_id: 14, timestamp: "2026-07-20T13:15:00+00:00", latitude: 22.4900, longitude: 91.8300, submission_type: "mobile_app", flood_depth: "ankle",       food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: false },
+      { report_id: 15, timestamp: "2026-07-20T13:22:00+00:00", latitude: 22.3050, longitude: 91.7500, submission_type: "mobile_app", flood_depth: "knee",        food_available: false, water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: true,  daily_job_affected: true,  has_attachment: true  },
+      // --- Sylhet cluster ---
+      { report_id: 16, timestamp: "2026-07-20T13:36:00+00:00", latitude: 24.8949, longitude: 91.8687, submission_type: "voice_call", flood_depth: "ankle",       food_available: true,  water_available: false, electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: true,  flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: false },
+      { report_id: 17, timestamp: "2026-07-20T13:50:00+00:00", latitude: 24.8250, longitude: 91.8050, submission_type: "mobile_app", flood_depth: "below_ankle", food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: false, has_attachment: false },
+      { report_id: 18, timestamp: "2026-07-20T14:05:00+00:00", latitude: 24.9650, longitude: 91.9250, submission_type: "mobile_app", flood_depth: "waist",       food_available: false, water_available: false, electricity_available: false, flood_water_rising_fast: true,  home_damaged: true,  road_damaged: true,  family_member_sick: false, family_member_injured: true,  family_member_missing: false, flood_shelter_crowded: true,  daily_job_affected: true,  has_attachment: true  },
+      { report_id: 19, timestamp: "2026-07-20T14:20:00+00:00", latitude: 24.7850, longitude: 91.9550, submission_type: "mobile_app", flood_depth: "knee",        food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: true,  home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: true,  has_attachment: true  },
+      { report_id: 20, timestamp: "2026-07-20T14:35:00+00:00", latitude: 25.0150, longitude: 91.7950, submission_type: "mobile_app", flood_depth: "ankle",       food_available: true,  water_available: true,  electricity_available: true,  flood_water_rising_fast: false, home_damaged: false, road_damaged: false, family_member_sick: false, family_member_injured: false, family_member_missing: false, flood_shelter_crowded: false, daily_job_affected: false, has_attachment: false },
+    ];
+
+    const statusEl = document.getElementById("status");
+
+    // Centre roughly on Bangladesh until we have data to fit to.
+    const map = L.map("map").setView([23.685, 90.356], 7);
+
+    // Standard OpenStreetMap basemap - free, no API key, and the most
+    // widely-reachable tile host. Renders Bengali place names correctly.
+    const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    });
+    tiles.on("tileerror", () => {
+      statusEl.textContent = "Basemap tiles failed to load (network / firewall?).";
+    });
+    tiles.addTo(map);
+
+    // Report markers: circle filled with the Project RELAY red, black outline.
+    const MARKER_STYLE = {
+      radius: 6,
+      fillColor: "#EC635E",
+      fillOpacity: 1,
+      color: "#000000",
+      weight: 2,
+      opacity: 1,
+    };
+
+    // Boolean condition fields, shown as read-only checkboxes in the popup.
+    const CONDITION_FIELDS = [
+      ["food_available", "Food available"],
+      ["water_available", "Water available"],
+      ["electricity_available", "Electricity available"],
+      ["flood_water_rising_fast", "Flood water rising fast"],
+      ["home_damaged", "Home damaged"],
+      ["road_damaged", "Road damaged"],
+      ["family_member_sick", "Family member sick"],
+      ["family_member_injured", "Family member injured"],
+      ["family_member_missing", "Family member missing"],
+      ["flood_shelter_crowded", "Flood shelter crowded"],
+      ["daily_job_affected", "Daily job affected"],
+      ["has_attachment", "Has attachment"],
+    ];
+
+    function formatTime(v) {
+      if (!v) return "—";
+      return String(v).replace("T", " ").replace("+00:00", " UTC");
+    }
+
+    function popupHtml(report) {
+      const conditions = CONDITION_FIELDS.map(([key, label]) => {
+        const checked = report[key] === true ? " checked" : "";
+        return `<li><input type="checkbox" tabindex="-1"${checked} /><span>${label}</span></li>`;
+      }).join("");
+
+      return `
+        <div class="report-popup">
+          <h3>Flood Condition Report #${report.report_id}</h3>
+          <div class="meta-row"><span>Time:</span> ${formatTime(report.timestamp)}</div>
+          <div class="meta-row"><span>Source:</span> ${String(report.submission_type).replace(/_/g, " ")}</div>
+          <div class="meta-row"><span>Location:</span> ${report.latitude}, ${report.longitude}</div>
+          <hr />
+          <div class="depth"><span>Flood depth:</span> ${String(report.flood_depth).replace(/_/g, " ")}</div>
+          <ul>${conditions}</ul>
+        </div>
+      `;
+    }
+
+    function renderReports(reports) {
+      const markers = [];
+      for (const report of reports) {
+        if (report.latitude == null || report.longitude == null) continue;
+        const marker = L.circleMarker(
+          [report.latitude, report.longitude],
+          MARKER_STYLE
+        ).bindPopup(popupHtml(report), { closeButton: false });
+        marker.addTo(map);
+        markers.push(marker);
+      }
+
+      if (markers.length > 0) {
+        map.fitBounds(L.featureGroup(markers).getBounds().pad(0.1));
+      }
+      statusEl.textContent = `Sample data — ${markers.length} report(s)`;
+    }
+
+    renderReports(SAMPLE_REPORTS);
+  </script>
 </body>
 </html>
