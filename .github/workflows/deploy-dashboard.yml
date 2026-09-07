@@ -1,0 +1,40 @@
+name: Deploy public dashboard
+
+# Publishes frontend/public_dashboard/ to GitHub Pages.
+# Runs on pushes to main that touch the dashboard, or manually from the Actions tab.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/public_dashboard/**'
+      - '.github/workflows/deploy-dashboard.yml'
+  workflow_dispatch:
+
+# Permissions the deploy-pages action needs.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; don't cancel an in-progress one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/public_dashboard
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
