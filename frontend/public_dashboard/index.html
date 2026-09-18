@@ -3788,15 +3788,16 @@
       opacity: 0.85,
     };
 
-    // Boolean condition fields.
-    //   label       - used in the report popup (always the plain field name)
-    //   filterLabel - used in the Condition Filter (defaults to label)
-    //   invert      - if true, the filter matches reports where the field is
-    //                 FALSE (e.g. "Food unavailable" -> food_available == false)
+    // Boolean condition fields. `label` is used both in the report popup
+    // checkbox and in the Condition Filter, so the two always agree.
+    //   invert - if true, "true" means the checkbox is UNCHECKED and the
+    //            filter matches when the underlying field is FALSE (e.g.
+    //            "Food unavailable" is checked/matched when
+    //            food_available == false).
     const CONDITION_FIELDS = [
-      { key: "food_available",          label: "Food available",         filterLabel: "Food unavailable",        invert: true },
-      { key: "water_available",         label: "Water available",        filterLabel: "Water unavailable",       invert: true },
-      { key: "electricity_available",   label: "Electricity available",  filterLabel: "Electricity unavailable", invert: true },
+      { key: "food_available",          label: "Food unavailable",        invert: true },
+      { key: "water_available",         label: "Water unavailable",       invert: true },
+      { key: "electricity_available",   label: "Electricity unavailable", invert: true },
       { key: "flood_water_rising_fast", label: "Flood water rising fast" },
       { key: "home_damaged",            label: "Home damaged" },
       { key: "road_damaged",            label: "Road damaged" },
@@ -3824,8 +3825,9 @@
     }
 
     function popupHtml(report) {
-      const conditions = CONDITION_FIELDS.map(({ key, label }) => {
-        const checked = report[key] === true ? " checked" : "";
+      const conditions = CONDITION_FIELDS.map(({ key, label, invert }) => {
+        const match = invert ? report[key] === false : report[key] === true;
+        const checked = match ? " checked" : "";
         return `<li><input type="checkbox" tabindex="-1"${checked} /><span>${label}</span></li>`;
       }).join("");
 
@@ -3940,9 +3942,9 @@
     // popups use).
     function buildConditionFilter() {
       const list = document.getElementById("conditionFilter");
-      for (const { key, label, filterLabel, invert } of CONDITION_FIELDS) {
+      for (const { key, label, invert } of CONDITION_FIELDS) {
         list.append(
-          filterRow(filterLabel || label, {
+          filterRow(label, {
             condition: key,
             invert: invert ? "1" : "",
           })
