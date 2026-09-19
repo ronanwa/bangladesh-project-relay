@@ -192,6 +192,21 @@
       background: #EC635E;
       border-color: #000;
     }
+
+    /* --- Legend swatches ------------------------------------- */
+    .legend-swatch { flex: 0 0 auto; }
+    .legend-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #EC635E;
+      border: 1.8px solid #000;
+    }
+    .legend-line {
+      width: 18px;
+      height: 3px;
+      background: #1b5e20;
+    }
     /* --- Clear-all-filters button (its own box) ------------- */
     .clear-filters {
       font: inherit;
@@ -266,6 +281,13 @@
         synthetic data reports generated only for the purpose of this system demo.</strong>
       </div>
     </div>
+    <details class="filter">
+      <summary>Legend</summary>
+      <ul class="legend-list">
+        <li><span class="legend-swatch legend-dot"></span><span>Report</span></li>
+        <li><span class="legend-swatch legend-line"></span><span>Bangladesh border</span></li>
+      </ul>
+    </details>
     <details class="filter">
       <summary>Condition Filter</summary>
       <ul id="conditionFilter"></ul>
